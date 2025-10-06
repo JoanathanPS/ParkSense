@@ -28,6 +28,8 @@
 - Python 3.x installed
 - SQLite3 installed (or use built-in SQLite)
 - Git (optional, for cloning the repo)
+- Flask
+
 
 ### Installation
 
