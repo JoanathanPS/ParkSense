@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Showcase · ParkSense{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Payment showcase</h1>
+        <p class="text-muted mb-0">A visual walkthrough of how wallet deductions and invoices look during checkout.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Step 1 · Slot selection</h2>
+                <p class="text-muted small">Choose an available slot and duration between one and four hours. The platform calculates the rupee fee instantly.</p>
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-semibold">Slot</span>
+                        <span>Zone B · Floor 4 · B04-012</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-semibold">Duration</span>
+                        <span>2 hours</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold">Amount</span>
+                        <span>₹240.00</span>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">Pricing is dynamic per floor, slot type, and amenities.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Step 2 · Wallet deduction</h2>
+                <p class="text-muted small">Confirming a reservation deducts the fee from the user wallet and records a transaction for admin review.</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Wallet before booking</span>
+                        <span>₹1,000.00</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Reservation charge</span>
+                        <span class="text-danger">−₹240.00</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Wallet after booking</span>
+                        <span class="fw-semibold text-success">₹760.00</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Step 3 · Digital receipt</h2>
+        <p class="text-muted small">Receipts mirror the data shown in the admin dashboard, making audits straightforward.</p>
+        <div class="border rounded-3 p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <p class="mb-1 fw-semibold">{{ user.full_name if user else 'Primary Driver' }}</p>
+                    <p class="text-muted small mb-0">Login ID · {{ user.login_id if user else 'user' }}</p>
+                </div>
+                <div class="text-end">
+                    <p class="mb-1 fw-semibold">Receipt #INV-00215</p>
+                    <p class="text-muted small mb-0">Paid today · Wallet</p>
+                </div>
+            </div>
+            <table class="table table-sm mb-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-end">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Parking slot B04-012 · 2 hours</td>
+                        <td class="text-end">240.00</td>
+                    </tr>
+                    <tr>
+                        <td>Taxes &amp; fees</td>
+                        <td class="text-end">0.00</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="fw-semibold">
+                        <td>Total paid</td>
+                        <td class="text-end">₹240.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-muted small mb-0">Transactions appear in the admin wallet activity list immediately for reconciliation.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

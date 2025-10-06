@@ -1,71 +1,97 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Analytics - Smart Parking{% endblock %}
+{% block title %}Analytics · ParkSense{% endblock %}
 
 {% block content %}
-<div class="analytics-page">
-    <h2>Analytics & Predictions</h2>
-    
-    <div class="analytics-grid">
-        <div class="analytics-card">
-            <h3>Revenue Report</h3>
-            <div id="revenue-data">
-                <p class="revenue-total">Total Revenue: <span class="highlight">${{ "%.2f"|format(revenue.total_revenue) }}</span></p>
-                
-                {% if revenue.revenue_by_slot_type %}
-                <h4>Revenue by Slot Type</h4>
-                <ul class="revenue-list">
-                    {% for item in revenue.revenue_by_slot_type %}
-                    <li>{{ item[0] }}: <span class="highlight">${{ "%.2f"|format(item[1]) }}</span></li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Analytics and insights</h1>
+        <p class="text-muted mb-0">Track performance, demand, and revenue trends in real time.</p>
+    </div>
+    <button class="btn btn-outline-light text-primary border-primary" onclick="updateAnalytics()"><i class="bi bi-arrow-repeat me-2"></i>Refresh</button>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Revenue overview</h2>
+                <div id="revenue-data">
+                    <p class="fs-4 fw-semibold">Total revenue · <span class="text-primary">₹{{ '%.2f'|format(revenue.total_revenue) }}</span></p>
+                    {% if revenue.revenue_by_slot_type %}
+                    <h3 class="h6 text-muted mt-4">Revenue by slot type</h3>
+                    <ul class="list-unstyled small mb-0">
+                        {% for item in revenue.revenue_by_slot_type %}
+                        <li class="d-flex justify-content-between py-1 border-bottom border-light-subtle">
+                            <span class="fw-semibold">{{ item[0] }}</span>
+                            <span>₹{{ '%.2f'|format(item[1]) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted small mb-0">No revenue data is available yet.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
-        
-        <div class="analytics-card">
-            <h3>Peak Demand Prediction</h3>
-            <div id="prediction-data">
-                {% if predictions.peak_hours %}
-                <p>Peak Hours: <span class="highlight">{{ predictions.peak_hours|join(', ') }}</span></p>
-                <p class="prediction-text">{{ predictions.recommendation }}</p>
-                {% else %}
-                <p>Collecting data for predictions...</p>
-                {% endif %}
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Peak demand forecast</h2>
+                <div id="prediction-data">
+                    {% if predictions.peak_hours %}
+                    <p class="mb-2">Expected peak hours: <span class="fw-semibold">{{ predictions.peak_hours|join(', ') }}</span></p>
+                    <p class="text-muted small mb-0">{{ predictions.recommendation }}</p>
+                    {% else %}
+                    <p class="text-muted mb-0">Collecting more usage data to build predictions.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
-        
-        <div class="analytics-card">
-            <h3>Busiest Zones</h3>
-            <div id="zones-data">
-                {% if predictions.busiest_zones %}
-                <ul class="zone-list">
-                    {% for zone in predictions.busiest_zones %}
-                    <li>
-                        <strong>{{ zone[0] }}</strong>: 
-                        {{ zone[1] }} reservations, 
-                        <span class="highlight">${{ "%.2f"|format(zone[2]) }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p>No zone data available yet.</p>
-                {% endif %}
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Busiest zones</h2>
+                <div id="zones-data">
+                    {% if predictions.busiest_zones %}
+                    <ul class="list-unstyled mb-0">
+                        {% for zone in predictions.busiest_zones %}
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+                            <div>
+                                <p class="mb-0 fw-semibold">{{ zone[0] }}</p>
+                                <small class="text-muted">{{ zone[1] }} reservations</small>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary">₹{{ '%.2f'|format(zone[2]) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted mb-0">No zone data available yet.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
-        
-        <div class="analytics-card">
-            <h3>Slot Type Preferences</h3>
-            <div id="preferences-data">
-                {% if predictions.slot_type_preferences %}
-                <ul class="preference-list">
-                    {% for pref in predictions.slot_type_preferences %}
-                    <li>{{ pref[0] }}: <span class="highlight">{{ pref[1] }} reservations</span></li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p>No preference data available yet.</p>
-                {% endif %}
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Slot type preferences</h2>
+                <div id="preferences-data">
+                    {% if predictions.slot_type_preferences %}
+                    <ul class="list-unstyled mb-0">
+                        {% for pref in predictions.slot_type_preferences %}
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+                            <span class="fw-semibold">{{ pref[0] }}</span>
+                            <span class="badge bg-secondary-subtle text-secondary">{{ pref[1] }} reservations</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted mb-0">No slot preference data available yet.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -75,49 +101,62 @@
 {% block scripts %}
 <script>
 function updateAnalytics() {
-    fetch('/api/analytics')
+    fetch('{{ url_for('api_analytics') }}')
         .then(response => response.json())
-        .then(data => {
-            const revenueHTML = `
-                <p class="revenue-total">Total Revenue: <span class="highlight">$${data.revenue.total_revenue.toFixed(2)}</span></p>
-                ${data.revenue.revenue_by_slot_type.length > 0 ? `
-                    <h4>Revenue by Slot Type</h4>
-                    <ul class="revenue-list">
-                        ${data.revenue.revenue_by_slot_type.map(item => 
-                            `<li>${item[0]}: <span class="highlight">$${item[1].toFixed(2)}</span></li>`
-                        ).join('')}
+        .then(payload => {
+            if (!payload.success) return;
+            const { revenue, predictions } = payload.data;
+            const revenueData = document.getElementById('revenue-data');
+            revenueData.innerHTML = `
+                <p class="fs-4 fw-semibold">Total revenue · <span class="text-primary">₹${Number(revenue.total_revenue || 0).toFixed(2)}</span></p>
+                ${revenue.revenue_by_slot_type.length ? `
+                    <h3 class="h6 text-muted mt-4">Revenue by slot type</h3>
+                    <ul class="list-unstyled small mb-0">
+                        ${revenue.revenue_by_slot_type.map(item => `
+                            <li class="d-flex justify-content-between py-1 border-bottom border-light-subtle">
+                            <span class="fw-semibold">${item[0]}</span>
+                                <span>₹${Number(item[1] || 0).toFixed(2)}</span>
+                            </li>
+                        `).join('')}
                     </ul>
-                ` : ''}
+                ` : '<p class="text-muted small mb-0">No revenue data is available yet.</p>'}
             `;
-            document.getElementById('revenue-data').innerHTML = revenueHTML;
-            
-            const predictionHTML = data.predictions.peak_hours.length > 0 ? `
-                <p>Peak Hours: <span class="highlight">${data.predictions.peak_hours.join(', ')}</span></p>
-                <p class="prediction-text">${data.predictions.recommendation}</p>
-            ` : '<p>Collecting data for predictions...</p>';
-            document.getElementById('prediction-data').innerHTML = predictionHTML;
-            
-            const zonesHTML = data.predictions.busiest_zones.length > 0 ? `
-                <ul class="zone-list">
-                    ${data.predictions.busiest_zones.map(zone => 
-                        `<li><strong>${zone[0]}</strong>: ${zone[1]} reservations, <span class="highlight">$${zone[2].toFixed(2)}</span></li>`
-                    ).join('')}
+
+            const predictionData = document.getElementById('prediction-data');
+            predictionData.innerHTML = predictions.peak_hours.length ? `
+                <p class="mb-2">Expected peak hours: <span class="fw-semibold">${predictions.peak_hours.join(', ')}</span></p>
+                <p class="text-muted small mb-0">${predictions.recommendation}</p>
+            ` : '<p class="text-muted mb-0">Collecting more usage data to build predictions.</p>';
+
+            const zonesData = document.getElementById('zones-data');
+            zonesData.innerHTML = predictions.busiest_zones.length ? `
+                <ul class="list-unstyled mb-0">
+                    ${predictions.busiest_zones.map(zone => `
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+                            <div>
+                                <p class="mb-0 fw-semibold">${zone[0]}</p>
+                                <small class="text-muted">${zone[1]} reservations</small>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary">₹${Number(zone[2] || 0).toFixed(2)}</span>
+                        </li>
+                    `).join('')}
                 </ul>
-            ` : '<p>No zone data available yet.</p>';
-            document.getElementById('zones-data').innerHTML = zonesHTML;
-            
-            const preferencesHTML = data.predictions.slot_type_preferences.length > 0 ? `
-                <ul class="preference-list">
-                    ${data.predictions.slot_type_preferences.map(pref => 
-                        `<li>${pref[0]}: <span class="highlight">${pref[1]} reservations</span></li>`
-                    ).join('')}
+            ` : '<p class="text-muted mb-0">No zone data available yet.</p>';
+
+            const preferencesData = document.getElementById('preferences-data');
+            preferencesData.innerHTML = predictions.slot_type_preferences.length ? `
+                <ul class="list-unstyled mb-0">
+                    ${predictions.slot_type_preferences.map(pref => `
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+                            <span class="fw-semibold">${pref[0]}</span>
+                            <span class="badge bg-secondary-subtle text-secondary">${pref[1]} reservations</span>
+                        </li>
+                    `).join('')}
                 </ul>
-            ` : '<p>No preference data available yet.</p>';
-            document.getElementById('preferences-data').innerHTML = preferencesHTML;
-        })
-        .catch(error => console.error('Error updating analytics:', error));
+            ` : '<p class="text-muted mb-0">No slot preference data available yet.</p>';
+        });
 }
 
-setInterval(updateAnalytics, 5000);
+setInterval(updateAnalytics, 10000);
 </script>
 {% endblock %}

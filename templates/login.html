@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In · ParkSense{% endblock %}
+
+{% block content %}
+<div class="row g-5 align-items-center">
+    <div class="col-lg-6">
+        <h1 class="h2 mb-3">Welcome back</h1>
+        <p class="text-muted">Sign in as an administrator or driver to manage slots, reservations, and wallet balances.</p>
+        <div class="border rounded-3 p-3 bg-light bg-opacity-50">
+            <h2 class="h6">Demo credentials</h2>
+            <ul class="small text-muted mb-0">
+                <li><strong>Admin:</strong> login <code>admin</code> · password <code>admin</code></li>
+                <li><strong>Driver:</strong> login <code>user</code> · password <code>user</code></li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Sign in to continue</h2>
+                {% if errors %}
+                <div class="alert alert-danger" role="alert">{{ errors|join(', ') }}</div>
+                {% endif %}
+                <form method="post" class="row g-3">
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                    <div class="col-12">
+                        <label class="form-label">Login ID</label>
+                        <input type="text" class="form-control" name="login_id" placeholder="Enter your login" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="submit" class="btn btn-primary">Sign in</button>
+                    </div>
+                    <div class="col-12 text-center">
+                        <a href="{{ url_for('register') }}" class="small">Need an account? Create one now.</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Database Overview · ParkSense{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Database overview</h1>
+        <p class="text-muted mb-0">Inspect the SQLite data backing reservations, payments, and users.</p>
+    </div>
+    <form method="post" action="{{ url_for('admin_reset_database') }}" onsubmit="return confirm('Clear reservations, payments, and wallet history?');">
+        <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-trash me-2"></i>Clear transactional data
+        </button>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Total slots</p>
+                <h3 class="h4 mb-0">{{ summary.total_slots }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Available now</p>
+                <h3 class="h4 mb-0">{{ summary.available_slots }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Occupied</p>
+                <h3 class="h4 mb-0">{{ summary.occupied_slots }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Occupancy</p>
+                <h3 class="h4 mb-0">{{ summary.occupancy_rate }}%</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for table_name, table in overview.items() %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2 class="h5 mb-0">{{ table_name|replace('_', ' ')|title }}</h2>
+            <p class="text-muted small mb-0">{{ table.count }} row{% if table.count != 1 %}s{% endif %} recorded.</p>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if table.rows %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        {% for column in table.columns %}
+                        <th scope="col">{{ column|title }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table.rows %}
+                    <tr>
+                        {% for cell in row %}
+                        <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No records in this table yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

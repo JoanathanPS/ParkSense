@@ -1,108 +1,174 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% from 'partials/summary_card.html' import render as summary_card %}
 
-{% block title %}Dashboard - Smart Parking{% endblock %}
+{% block title %}Dashboard · ParkSense{% endblock %}
 
 {% block content %}
-<div class="dashboard">
-    <h2>Parking Overview</h2>
-    
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h3>Total Slots</h3>
-            <p class="stat-number" id="total-slots">{{ summary.total_slots }}</p>
-        </div>
-        <div class="stat-card success">
-            <h3>Available</h3>
-            <p class="stat-number" id="available-slots">{{ summary.available_slots }}</p>
-        </div>
-        <div class="stat-card warning">
-            <h3>Occupied</h3>
-            <p class="stat-number" id="occupied-slots">{{ summary.occupied_slots }}</p>
-        </div>
-        <div class="stat-card info">
-            <h3>Occupancy Rate</h3>
-            <p class="stat-number" id="occupancy-rate">{{ summary.occupancy_rate }}%</p>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h1 class="h3 mb-1">Smart Parking Overview</h1>
+        <p class="text-muted mb-0">Monitor availability, utilization, and revenue at a glance.</p>
+    </div>
+    <span class="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-2">
+        <span class="spinner-grow spinner-grow-sm"></span>
+        Live feed
+    </span>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">{{ summary_card({'title': 'Total Slots', 'value': summary.total_slots, 'icon': 'bi-grid-3x3-gap', 'data_key': 'total'}) }}</div>
+    <div class="col-sm-6 col-xl-3">{{ summary_card({'title': 'Available', 'value': summary.available_slots, 'icon': 'bi-ev-front', 'subtitle': 'Ready to reserve now', 'data_key': 'available'}) }}</div>
+    <div class="col-sm-6 col-xl-3">{{ summary_card({'title': 'Occupied', 'value': summary.occupied_slots, 'icon': 'bi-traffic-cone', 'subtitle': 'Currently in use', 'data_key': 'occupied'}) }}</div>
+    <div class="col-sm-6 col-xl-3">{{ summary_card({'title': 'Occupancy Rate', 'value': summary.occupancy_rate|string + '%', 'icon': 'bi-speedometer2', 'subtitle': 'Across all zones', 'data_key': 'rate'}) }}</div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-0 pb-0">
+                <h2 class="h5 mb-0">Floor Availability</h2>
+                <p class="text-muted small mb-0">Breakdown of total, available, and occupied bays.</p>
+            </div>
+            <div class="card-body" data-floor-list>
+                {% if summary.by_floor %}
+                    {% for floor in summary.by_floor %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small">
+                                <span class="fw-semibold">Floor {{ floor.floor }}</span>
+                <span class="text-muted">{{ floor.available }}/{{ floor.total }} available</span>
+            </div>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ 100 - floor.occupancy_rate }}%"></div>
+            </div>
+            <div class="d-flex justify-content-between small text-muted mt-1">
+                <span>Avg ₹{{ '%.2f'|format(floor.avg_price) }}/hr</span>
+                <span>{{ floor.occupancy_rate }}% occupied</span>
+            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">No floors configured yet.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
-    
-    <div class="floor-overview">
-        <h3>Floor Availability</h3>
-        <div id="floor-data">
-            {% for floor in summary.by_floor %}
-            <div class="floor-card">
-                <h4>Floor {{ floor[0] }}</h4>
-                <div class="floor-stats">
-                    <p>Available: <span class="highlight">{{ floor[2]|int }}/{{ floor[1] }}</span></p>
-                    <p>Avg Price: <span class="highlight">${{ "%.2f"|format(floor[3]) }}/hr</span></p>
+    <div class="col-xl-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-0 pb-0">
+                <h2 class="h5 mb-0">Zone Occupancy</h2>
+                <p class="text-muted small mb-0">Track saturation across premium and standard zones.</p>
+            </div>
+            <div class="card-body" data-zone-list>
+                {% if summary.by_zone %}
+                <div class="row row-cols-1 row-cols-md-2 g-3">
+                    {% for zone in summary.by_zone %}
+                    <div class="col">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="fw-semibold">{{ zone.zone }}</span>
+                                <span class="badge bg-primary-subtle text-primary">{{ zone.occupancy_rate }}%</span>
+                            </div>
+                            <p class="small text-muted mb-0">{{ zone.available }}/{{ zone.total }} open bays</p>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ (floor[2] / floor[1] * 100)|int }}%"></div>
+                {% else %}
+                <p class="text-muted mb-0">Zones will appear as soon as data is available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-4">
+
+<h2 class="h5 mb-3">Quick navigation</h2>
+<div class="row g-3">
+    {% for link in quick_links %}
+    <div class="col-md-3 col-sm-6">
+        <a href="{{ link.url }}" class="text-decoration-none">
+            <div class="card shadow-sm border-0 h-100 hover-shadow">
+                <div class="card-body text-center py-4">
+                    <div class="display-6 text-primary mb-2"><i class="bi {{ link.icon }}"></i></div>
+                    <h3 class="h6 text-dark">{{ link.label }}</h3>
                 </div>
             </div>
-            {% endfor %}
-        </div>
+        </a>
     </div>
-    
-    <div class="zone-overview">
-        <h3>Zone Availability</h3>
-        <div id="zone-data" class="zone-grid">
-            {% for zone in summary.by_zone %}
-            <div class="zone-card">
-                <h4>{{ zone[0] }}</h4>
-                <p class="zone-available">{{ zone[2]|int }}/{{ zone[1] }} available</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+    {% endfor %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function updateDashboard() {
-    fetch('/api/availability')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('total-slots').textContent = data.total_slots;
-            document.getElementById('available-slots').textContent = data.available_slots;
-            document.getElementById('occupied-slots').textContent = data.occupied_slots;
-            document.getElementById('occupancy-rate').textContent = data.occupancy_rate + '%';
-            
-            let floorHTML = '';
-            data.by_floor.forEach(floor => {
-                const available = Math.floor(floor[2] || 0);
-                const total = floor[1];
-                const percentage = (available / total * 100).toFixed(0);
-                floorHTML += `
-                    <div class="floor-card">
-                        <h4>Floor ${floor[0]}</h4>
-                        <div class="floor-stats">
-                            <p>Available: <span class="highlight">${available}/${total}</span></p>
-                            <p>Avg Price: <span class="highlight">$${floor[3].toFixed(2)}/hr</span></p>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${percentage}%"></div>
-                        </div>
-                    </div>
-                `;
-            });
-            document.getElementById('floor-data').innerHTML = floorHTML;
-            
-            let zoneHTML = '';
-            data.by_zone.forEach(zone => {
-                const available = Math.floor(zone[2] || 0);
-                zoneHTML += `
-                    <div class="zone-card">
-                        <h4>${zone[0]}</h4>
-                        <p class="zone-available">${available}/${zone[1]} available</p>
-                    </div>
-                `;
-            });
-            document.getElementById('zone-data').innerHTML = zoneHTML;
-        })
-        .catch(error => console.error('Error updating dashboard:', error));
-}
+    async function refreshDashboard() {
+        try {
+            const response = await fetch('{{ url_for('api_availability') }}');
+            const payload = await response.json();
+            if (!payload.success) return;
+            const data = payload.data;
 
-setInterval(updateDashboard, 3000);
+            const totalEl = document.querySelector('[data-summary="total"]');
+            const availableEl = document.querySelector('[data-summary="available"]');
+            const occupiedEl = document.querySelector('[data-summary="occupied"]');
+            const rateEl = document.querySelector('[data-summary="rate"]');
+
+            if (totalEl) totalEl.textContent = data.total_slots;
+            if (availableEl) availableEl.textContent = data.available_slots;
+            if (occupiedEl) occupiedEl.textContent = data.occupied_slots;
+            if (rateEl) rateEl.textContent = data.occupancy_rate + '%';
+
+            const floorContainer = document.querySelector('[data-floor-list]');
+            if (floorContainer) {
+                floorContainer.innerHTML = '';
+                data.by_floor.forEach((floor) => {
+                    floorContainer.insertAdjacentHTML('beforeend', `
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small">
+                                <span class="fw-semibold">Floor ${floor.floor}</span>
+                                <span class="text-muted">${floor.available}/${floor.total} available</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: ${100 - floor.occupancy_rate}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted mt-1">
+                                <span>Avg ₹${Number(floor.avg_price).toFixed(2)}/hr</span>
+                                <span>${floor.occupancy_rate}% occupied</span>
+                            </div>
+                        </div>
+                    `);
+                });
+            }
+
+            const zoneContainer = document.querySelector('[data-zone-list]');
+            if (zoneContainer) {
+                if (!data.by_zone.length) {
+                    zoneContainer.innerHTML = '<p class="text-muted mb-0">Zones will appear as soon as data is available.</p>';
+                } else {
+                    const grid = document.createElement('div');
+                    grid.className = 'row row-cols-1 row-cols-md-2 g-3';
+                    data.by_zone.forEach((zone) => {
+                        grid.insertAdjacentHTML('beforeend', `
+                            <div class="col">
+                                <div class="border rounded-3 p-3 h-100">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="fw-semibold">${zone.zone}</span>
+                                        <span class="badge bg-primary-subtle text-primary">${zone.occupancy_rate}%</span>
+                                    </div>
+                                    <p class="small text-muted mb-0">${zone.available}/${zone.total} open bays</p>
+                                </div>
+                            </div>
+                        `);
+                    });
+                    zoneContainer.innerHTML = '';
+                    zoneContainer.appendChild(grid);
+                }
+            }
+        } catch (error) {
+            console.error('Dashboard refresh failed', error);
+        }
+    }
+    setInterval(refreshDashboard, 10000);
 </script>
 {% endblock %}

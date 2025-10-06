@@ -1,23 +1,155 @@
 {% extends "base.html" %}
 
-{% block title %}Reservations - Smart Parking{% endblock %}
+{% block title %}Reservations · ParkSense{% endblock %}
 
 {% block content %}
-<div class="reservations-page">
-    <h2>Manage Reservations</h2>
-    
-    <div class="info-box">
-        <p>Note: This demo uses User ID 1. In production, this would be linked to your authenticated user account.</p>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Reservation Centre</h1>
+        <p class="text-muted mb-0">Book, monitor, and conclude your reservations with a live countdown.</p>
     </div>
-    
-    <div class="reservation-actions">
-        <button onclick="window.location.href='/slots'" class="btn btn-primary">New Reservation</button>
-    </div>
-    
-    <div class="reservations-info">
-        <h3>Active Reservations</h3>
-        <p>Active reservations will be shown here once created through the Parking Slots page.</p>
-        <p>The system tracks all reservations with payment details, duration, and status.</p>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('slots') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Book a slot</a>
+        <a href="{{ url_for('profile', user_id=active_user.user_id) if active_user else url_for('register') }}" class="btn btn-outline-light text-primary border-primary">
+            <i class="bi bi-person-circle me-2"></i>{% if active_user %}View profile{% else %}Create account{% endif %}
+        </a>
     </div>
 </div>
+
+{% if not user %}
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i>
+        <div>Please create an account to start reserving parking slots. Each driver can book only one reservation per day.</div>
+    </div>
+{% else %}
+    {% if active_reservation %}
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Active reservation</h2>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width:56px; height:56px;">
+                            <i class="bi bi-clock-history fs-4"></i>
+                        </div>
+                        <div>
+                            <p class="mb-1 fw-semibold">Slot {{ active_reservation.slot_number }}</p>
+                            <p class="text-muted small mb-0">Ends by {{ active_reservation.end_time }}</p>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="border rounded-3 p-3 text-center">
+                                <p class="text-muted small mb-1">Amount</p>
+                                <h3 class="h4 mb-0">₹{{ '%.2f'|format(active_reservation.total_amount) }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded-3 p-3 text-center">
+                                <p class="text-muted small mb-1">Time remaining</p>
+                                <h3 class="h4 mb-0" data-countdown data-end="{{ active_reservation.end_time }}">—</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0"><i class="bi bi-shield-check me-1"></i>Reservations automatically release the slot after four hours.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Reservation policy</h2>
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="d-flex align-items-start mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Only one active reservation is allowed per user at any time.</li>
+                        <li class="d-flex align-items-start mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Each driver can secure one reservation per calendar day.</li>
+                        <li class="d-flex align-items-start mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Durations range from one to four hours with automatic release afterwards.</li>
+                        <li class="d-flex align-items-start"><i class="bi bi-check-circle-fill text-success me-2"></i>Extend or book another slot on the next day after the cooldown resets.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="alert">
+        <strong>No active reservation.</strong> You can book a slot now. Remember that only one booking is allowed per day.
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-0 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h2 class="h5 mb-1">Your reservations</h2>
+                <p class="text-muted small mb-0">A complete record of your bookings including amount, duration, and status.</p>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if reservations %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Slot</th>
+                            <th scope="col">Start time</th>
+                            <th scope="col">End time</th>
+                            <th scope="col">Duration (hrs)</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reservation in reservations %}
+                        <tr>
+                            <td class="fw-semibold">{{ reservation.slot_number }}</td>
+                            <td>{{ reservation.start_time }}</td>
+                            <td>{{ reservation.end_time or '—' }}</td>
+                            <td>{{ '%.2f'|format(reservation.duration_hours) }}</td>
+                            <td>₹{{ '%.2f'|format(reservation.total_amount) }}</td>
+                            <td>
+                                <span class="badge {% if reservation.status == 'active' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}">
+                                    {{ reservation.status|capitalize }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">You have not booked any reservations yet.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const countdownEl = document.querySelector('[data-countdown]');
+    if (countdownEl) {
+        const endDate = new Date(countdownEl.dataset.end);
+        const tick = () => {
+            const now = new Date();
+            const diff = endDate - now;
+            if (diff <= 0) {
+                countdownEl.textContent = 'Completed';
+                countdownEl.classList.add('text-success');
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            countdownEl.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        };
+
+        tick();
+        const intervalId = setInterval(() => {
+            tick();
+            if (countdownEl.textContent === 'Completed') {
+                clearInterval(intervalId);
+            }
+        }, 1000);
+    }
+</script>
 {% endblock %}

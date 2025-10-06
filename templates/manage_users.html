@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Users · ParkSense{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Manage users</h1>
+        <p class="text-muted mb-0">Create accounts, review balances, and activate profiles for testing.</p>
+    </div>
+    <a class="btn btn-outline-light text-primary border-primary" href="{{ url_for('admin_database') }}">
+        <i class="bi bi-hdd-network me-2"></i>Database view
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Create a new user</h2>
+                {% if success_message %}
+                <div class="alert alert-success" role="alert">{{ success_message }}</div>
+                {% endif %}
+                {% if errors %}
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0 ps-3">
+                        {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                <form method="post" class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Full name</label>
+                        <input type="text" class="form-control" name="full_name" placeholder="e.g. Rohan Mehta" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Login ID</label>
+                        <input type="text" class="form-control" name="login_id" placeholder="Unique login" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Email address</label>
+                        <input type="email" class="form-control" name="email" placeholder="name@example.com" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-control" name="phone" placeholder="9876543210">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Vehicle</label>
+                        <input type="text" class="form-control" name="vehicle_number" placeholder="KA01AB1234">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Confirm password</label>
+                        <input type="password" class="form-control" name="confirm_password" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Initial balance (₹)</label>
+                        <input type="number" min="0" step="0.01" class="form-control" name="initial_balance" value="0">
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="submit" class="btn btn-primary">Create user</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Registered users</h2>
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Login ID</th>
+                                <th scope="col">Wallet (₹)</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in users %}
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold d-block">{{ item.full_name }}</span>
+                                    <small class="text-muted">{{ item.email }}</small>
+                                </td>
+                                <td>{{ item.login_id }}</td>
+                                <td>₹{{ '%.2f'|format(item.wallet_balance) }}</td>
+                                <td class="text-end">
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm {% if active_user and active_user.user_id == item.user_id %}btn-success{% else %}btn-outline-primary{% endif %}"
+                                                data-select-user="{{ item.user_id }}">
+                                            {% if active_user and active_user.user_id == item.user_id %}Active{% else %}Set active{% endif %}
+                                        </button>
+                                        <form method="post" action="{{ url_for('delete_user', user_id=item.user_id) }}" onsubmit="return confirm('Delete this user? This action cannot be undone.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No users registered yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('[data-select-user]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const userId = button.dataset.selectUser;
+            const response = await fetch('{{ url_for('switch_user') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+            const payload = await response.json();
+            if (payload.success) {
+                window.location.reload();
+            } else {
+                alert(payload.message || 'Unable to set active user.');
+            }
+        });
+    });
+</script>
+{% endblock %}
