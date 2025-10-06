@@ -1,5 +1,4 @@
 # ParkSense
-# ParkSense
 
 **ParkSense** is a smart parking management system that helps users track available parking spaces, manage reservations, and maintain a database of parked vehicles efficiently.
 
