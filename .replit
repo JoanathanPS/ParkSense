@@ -1,3 +1,26 @@
 modules = ["python-3.11"]
 [agent]
 expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Smart Parking System"
+
+[[workflows.workflow]]
+name = "Smart Parking System"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python parking_system.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
