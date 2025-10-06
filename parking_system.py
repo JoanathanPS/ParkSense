@@ -92,6 +92,19 @@ class SmartParkingSystem:
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
         ''')
+
+        # Track wallet transactions such as top-ups for admin visibility
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wallet_transactions (
+                transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                transaction_type VARCHAR(20) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        ''')
         
         # Create utilization_stats table for analytics
         self.cursor.execute('''
@@ -182,16 +195,27 @@ class SmartParkingSystem:
             return False
     
     def add_wallet_balance(self, user_id: int, amount: float) -> bool:
-        """Add balance to user wallet"""
+        """Add balance to user wallet and record the transaction"""
+        if amount <= 0:
+            return False
+
         self.connect()
         self.cursor.execute('''
-            UPDATE users 
-            SET wallet_balance = wallet_balance + ? 
+            UPDATE users
+            SET wallet_balance = wallet_balance + ?
             WHERE user_id = ?
         ''', (amount, user_id))
-        self.conn.commit()
         affected = self.cursor.rowcount
+
+        if affected > 0:
+            self.cursor.execute('''
+                INSERT INTO wallet_transactions (user_id, amount, transaction_type, description)
+                VALUES (?, ?, 'top_up', 'Manual balance addition')
+            ''', (user_id, amount))
+
+        self.conn.commit()
         self.close()
+
         if affected > 0:
             print(f"✓ Added ${amount:.2f} to user {user_id} wallet")
         return affected > 0
@@ -232,16 +256,21 @@ class SmartParkingSystem:
     
     def get_availability_summary(self) -> Dict:
         """Get comprehensive availability summary"""
+        # Release expired reservations before computing availability
+        self.release_expired_reservations()
+
         self.connect()
-        
+
         # Total and available slots
         self.cursor.execute('SELECT COUNT(*), SUM(CASE WHEN is_available = 1 THEN 1 ELSE 0 END) FROM parking_slots')
         total, available = self.cursor.fetchone()
-        occupied = total - available if total and available else 0
-        
+        total = total or 0
+        available = available or 0
+        occupied = total - available if total else 0
+
         # By floor with pricing
         self.cursor.execute('''
-            SELECT floor_number, 
+            SELECT floor_number,
                    COUNT(*) as total,
                    SUM(CASE WHEN is_available = 1 THEN 1 ELSE 0 END) as available,
                    AVG(price_per_hour) as avg_price
@@ -249,50 +278,99 @@ class SmartParkingSystem:
             GROUP BY floor_number
             ORDER BY floor_number
         ''')
-        by_floor = self.cursor.fetchall()
-        
+        by_floor_rows = self.cursor.fetchall()
+
         # By zone
         self.cursor.execute('''
-            SELECT zone, 
+            SELECT zone,
                    COUNT(*) as total,
                    SUM(CASE WHEN is_available = 1 THEN 1 ELSE 0 END) as available
             FROM parking_slots
             WHERE zone IS NOT NULL
             GROUP BY zone
+            ORDER BY zone
         ''')
-        by_zone = self.cursor.fetchall()
-        
+        by_zone_rows = self.cursor.fetchall()
+
         self.close()
-        
+
+        by_floor = []
+        for floor in by_floor_rows:
+            total_floor = floor[1] or 0
+            available_floor = floor[2] or 0
+            occupied_floor = total_floor - available_floor
+            rate = round((occupied_floor / total_floor * 100) if total_floor else 0, 2)
+            by_floor.append({
+                'floor': floor[0],
+                'total': total_floor,
+                'available': available_floor,
+                'occupied': occupied_floor,
+                'avg_price': float(floor[3] or 0),
+                'occupancy_rate': rate
+            })
+
+        by_zone = []
+        for zone in by_zone_rows:
+            total_zone = zone[1] or 0
+            available_zone = zone[2] or 0
+            occupied_zone = total_zone - available_zone
+            rate = round((occupied_zone / total_zone * 100) if total_zone else 0, 2)
+            by_zone.append({
+                'zone': zone[0],
+                'total': total_zone,
+                'available': available_zone,
+                'occupied': occupied_zone,
+                'occupancy_rate': rate
+            })
+
         return {
-            'total_slots': total or 0,
-            'available_slots': available or 0,
+            'total_slots': total,
+            'available_slots': available,
             'occupied_slots': occupied,
-            'occupancy_rate': round((occupied / total * 100) if total and total > 0 else 0, 2),
+            'occupancy_rate': round((occupied / total * 100) if total else 0, 2),
             'by_floor': by_floor,
             'by_zone': by_zone
         }
     
     # ===== MODULE 3: RESERVATION WORKFLOW =====
     
-    def create_reservation_with_payment(self, user_id: int, slot_id: int, 
+    def create_reservation_with_payment(self, user_id: int, slot_id: int,
                                        duration_hours: float,
-                                       payment_method: str = 'wallet') -> Optional[int]:
-        """Create reservation with integrated payment workflow and proper transaction handling"""
+                                       payment_method: str = 'wallet') -> Tuple[Optional[int], str]:
+        """Create reservation with integrated payment workflow and proper transaction handling
+
+        Returns a tuple of (reservation_id, message)
+        """
+        if duration_hours is None:
+            return None, "Reservation duration is required."
+
+        if duration_hours < 1 or duration_hours > 4:
+            return None, "Reservation duration must be between 1 and 4 hours."
+
         self.connect()
         try:
             # Begin transaction
             self.conn.execute('BEGIN')
-            
+
+            # Ensure user does not have another active reservation
+            self.cursor.execute('''
+                SELECT reservation_id FROM reservations
+                WHERE user_id = ? AND status = 'active'
+            ''', (user_id,))
+            if self.cursor.fetchone():
+                self.conn.rollback()
+                self.close()
+                return None, "You already have an active reservation."
+
             # Check slot availability
             self.cursor.execute('SELECT is_available, price_per_hour FROM parking_slots WHERE slot_id = ?', (slot_id,))
             result = self.cursor.fetchone()
-            
+
             if not result or not result[0]:
                 print("✗ Error: Parking slot is not available!")
                 self.conn.rollback()
                 self.close()
-                return None
+                return None, "Parking slot is not available."
             
             price_per_hour = result[1]
             total_amount = price_per_hour * duration_hours
@@ -305,7 +383,7 @@ class SmartParkingSystem:
                 print(f"✗ Error: Insufficient wallet balance! Need ${total_amount:.2f}, have ${balance[0] if balance else 0:.2f}")
                 self.conn.rollback()
                 self.close()
-                return None
+                return None, "Insufficient wallet balance."
             
             # Create reservation
             start_time = datetime.now()
@@ -329,7 +407,13 @@ class SmartParkingSystem:
                 print(f"✗ Error: Payment failed - concurrent balance change detected")
                 self.conn.rollback()
                 self.close()
-                return None
+                return None, "Payment failed due to concurrent balance change."
+
+            # Record wallet debit
+            self.cursor.execute('''
+                INSERT INTO wallet_transactions (user_id, amount, transaction_type, description)
+                VALUES (?, ?, 'debit', 'Reservation payment')
+            ''', (user_id, -total_amount))
             
             # Record payment
             transaction_id = f"TXN{datetime.now().strftime('%Y%m%d%H%M%S')}{reservation_id}"
@@ -357,13 +441,13 @@ class SmartParkingSystem:
             self.close()
             print(f"✓ Reservation {reservation_id} created! Amount: ${total_amount:.2f}, Duration: {duration_hours}h")
             print(f"✓ Payment processed: {transaction_id}")
-            return reservation_id
+            return reservation_id, "Reservation created successfully."
         except Exception as e:
             print(f"✗ Error creating reservation: {e}")
             if self.conn:
                 self.conn.rollback()
             self.close()
-            return None
+            return None, "An unexpected error occurred while creating the reservation."
     
     def end_reservation(self, reservation_id: int) -> bool:
         """End reservation and free up the slot"""
@@ -396,6 +480,180 @@ class SmartParkingSystem:
             print(f"✗ Error ending reservation: {e}")
             self.close()
             return False
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict]:
+        """Return user information as a dictionary"""
+        self.connect()
+        self.cursor.execute('''
+            SELECT user_id, username, email, phone, vehicle_number, wallet_balance, created_at
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        row = self.cursor.fetchone()
+        self.close()
+        if not row:
+            return None
+        return {
+            'user_id': row[0],
+            'username': row[1],
+            'email': row[2],
+            'phone': row[3],
+            'vehicle_number': row[4],
+            'wallet_balance': float(row[5] or 0),
+            'created_at': row[6]
+        }
+
+    def get_user_reservations(self, user_id: int, active_only: bool = False) -> List[Dict]:
+        """Fetch reservations for a specific user"""
+        self.connect()
+        query = '''
+            SELECT r.reservation_id, p.slot_number, r.start_time, r.duration_hours, r.status
+            FROM reservations r
+            JOIN parking_slots p ON r.slot_id = p.slot_id
+            WHERE r.user_id = ?
+        '''
+        params = [user_id]
+        if active_only:
+            query += " AND r.status = 'active'"
+        query += ' ORDER BY r.start_time DESC'
+        self.cursor.execute(query, params)
+        rows = self.cursor.fetchall()
+        self.close()
+
+        reservations = []
+        for row in rows:
+            reservations.append({
+                'reservation_id': row[0],
+                'slot_number': row[1],
+                'start_time': row[2],
+                'duration_hours': float(row[3] or 0),
+                'status': row[4]
+            })
+        return reservations
+
+    def get_active_reservations(self) -> List[Dict]:
+        """Return a list of active reservations with user and slot details"""
+        self.connect()
+        self.cursor.execute('''
+            SELECT r.reservation_id, u.username, p.slot_number, r.start_time, r.end_time
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN parking_slots p ON r.slot_id = p.slot_id
+            WHERE r.status = 'active'
+        ''')
+        rows = self.cursor.fetchall()
+        self.close()
+        active = []
+        for row in rows:
+            active.append({
+                'reservation_id': row[0],
+                'username': row[1],
+                'slot_number': row[2],
+                'start_time': row[3],
+                'end_time': row[4]
+            })
+        return active
+
+    def release_expired_reservations(self) -> int:
+        """Mark reservations whose end time has passed as completed and free the slot"""
+        self.connect()
+        now = datetime.now().isoformat()
+        self.cursor.execute('''
+            SELECT reservation_id, slot_id FROM reservations
+            WHERE status = 'active' AND end_time <= ?
+        ''', (now,))
+        expired = self.cursor.fetchall()
+
+        released = 0
+        for reservation_id, slot_id in expired:
+            self.cursor.execute('''
+                UPDATE reservations
+                SET status = 'completed', end_time = ?
+                WHERE reservation_id = ?
+            ''', (now, reservation_id))
+            self.cursor.execute('UPDATE parking_slots SET is_available = 1 WHERE slot_id = ?', (slot_id,))
+            released += 1
+
+        if released:
+            self.conn.commit()
+        self.close()
+        return released
+
+    def get_occupancy_by_floor(self) -> List[Dict]:
+        """Return occupancy rate per floor"""
+        self.connect()
+        self.cursor.execute('''
+            SELECT floor_number,
+                   COUNT(*) AS total,
+                   SUM(CASE WHEN is_available = 0 THEN 1 ELSE 0 END) AS occupied
+            FROM parking_slots
+            GROUP BY floor_number
+            ORDER BY floor_number
+        ''')
+        rows = self.cursor.fetchall()
+        self.close()
+        floors = []
+        for row in rows:
+            total = row[1] or 0
+            occupied = row[2] or 0
+            rate = round((occupied / total * 100) if total else 0, 2)
+            floors.append({
+                'floor': row[0],
+                'total': total,
+                'occupied': occupied,
+                'occupancy_rate': rate
+            })
+        return floors
+
+    def get_occupancy_by_zone(self) -> List[Dict]:
+        """Return occupancy rate per zone"""
+        self.connect()
+        self.cursor.execute('''
+            SELECT zone,
+                   COUNT(*) AS total,
+                   SUM(CASE WHEN is_available = 0 THEN 1 ELSE 0 END) AS occupied
+            FROM parking_slots
+            WHERE zone IS NOT NULL
+            GROUP BY zone
+            ORDER BY zone
+        ''')
+        rows = self.cursor.fetchall()
+        self.close()
+        zones = []
+        for row in rows:
+            total = row[1] or 0
+            occupied = row[2] or 0
+            rate = round((occupied / total * 100) if total else 0, 2)
+            zones.append({
+                'zone': row[0],
+                'total': total,
+                'occupied': occupied,
+                'occupancy_rate': rate
+            })
+        return zones
+
+    def get_wallet_transactions(self, limit: int = 10) -> List[Dict]:
+        """Return latest wallet transactions"""
+        self.connect()
+        self.cursor.execute('''
+            SELECT wt.transaction_id, wt.user_id, u.username, wt.amount, wt.transaction_type, wt.created_at
+            FROM wallet_transactions wt
+            JOIN users u ON wt.user_id = u.user_id
+            ORDER BY wt.created_at DESC
+            LIMIT ?
+        ''', (limit,))
+        rows = self.cursor.fetchall()
+        self.close()
+        transactions = []
+        for row in rows:
+            transactions.append({
+                'transaction_id': row[0],
+                'user_id': row[1],
+                'username': row[2],
+                'amount': float(row[3] or 0),
+                'transaction_type': row[4],
+                'created_at': row[5]
+            })
+        return transactions
     
     # ===== MODULE 3: ANALYTICS & PREDICTIONS =====
     
@@ -583,10 +841,10 @@ def main():
     
     print("\n3.1 Creating Reservations with Integrated Payment...")
     print("-" * 80)
-    res1 = parking.create_reservation_with_payment(1, 1, 2.0, "wallet")
-    res2 = parking.create_reservation_with_payment(2, 5, 3.0, "wallet")
-    res3 = parking.create_reservation_with_payment(3, 8, 1.5, "wallet")
-    res4 = parking.create_reservation_with_payment(1, 2, 4.0, "wallet")
+    res1, _ = parking.create_reservation_with_payment(1, 1, 2.0, "wallet")
+    res2, _ = parking.create_reservation_with_payment(2, 5, 3.0, "wallet")
+    res3, _ = parking.create_reservation_with_payment(3, 8, 1.5, "wallet")
+    res4, _ = parking.create_reservation_with_payment(1, 2, 4.0, "wallet")
     
     print("\n3.2 Real-Time Availability After Reservations:")
     print("-" * 80)

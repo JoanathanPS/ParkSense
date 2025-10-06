@@ -1,73 +1,106 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Parking Slots - Smart Parking{% endblock %}
+{% block title %}Slots · ParkSense{% endblock %}
 
 {% block content %}
-<div class="slots-page">
-    <h2>Available Parking Slots</h2>
-    
-    <div class="filters">
-        <select id="floor-filter" class="filter-select">
-            <option value="">All Floors</option>
-            <option value="1">Floor 1</option>
-            <option value="2">Floor 2</option>
-            <option value="3">Floor 3</option>
-        </select>
-        
-        <select id="zone-filter" class="filter-select">
-            <option value="">All Zones</option>
-            <option value="Zone A">Zone A</option>
-            <option value="Zone B">Zone B</option>
-            <option value="Zone C">Zone C</option>
-        </select>
-        
-        <select id="type-filter" class="filter-select">
-            <option value="">All Types</option>
-            <option value="regular">Regular</option>
-            <option value="handicap">Handicap</option>
-            <option value="vip">VIP</option>
-            <option value="electric">Electric</option>
-        </select>
-        
-        <input type="number" id="price-filter" class="filter-input" placeholder="Max Price" step="0.5">
-        
-        <button onclick="applyFilters()" class="btn btn-primary">Filter</button>
-        <button onclick="clearFilters()" class="btn btn-secondary">Clear</button>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h1 class="h3 mb-1">Parking slots</h1>
+        <p class="text-muted mb-0">Filter available spaces and reserve instantly.</p>
     </div>
-    
-    <div id="slots-grid" class="slots-grid">
-        {% for slot in slots %}
-        <div class="slot-card {% if slot[5] %}available{% else %}occupied{% endif %}">
-            <div class="slot-header">
-                <h3>{{ slot[1] }}</h3>
-                <span class="slot-status">{{ 'Available' if slot[5] else 'Occupied' }}</span>
+    <button class="btn btn-outline-primary" onclick="updateSlots()"><i class="bi bi-arrow-repeat"></i> Refresh</button>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form class="row g-2 align-items-end">
+            <div class="col-sm-3">
+                <label for="floor-filter" class="form-label small text-uppercase text-muted">Floor</label>
+                <select id="floor-filter" class="form-select">
+                    <option value="">All floors</option>
+                    <option value="1">Floor 1</option>
+                    <option value="2">Floor 2</option>
+                    <option value="3">Floor 3</option>
+                </select>
             </div>
-            <div class="slot-details">
-                <p>Floor: {{ slot[2] }}</p>
-                <p>Zone: {{ slot[3] or 'N/A' }}</p>
-                <p>Type: {{ slot[4] }}</p>
-                <p class="slot-price">${{ "%.2f"|format(slot[6]) }}/hr</p>
+            <div class="col-sm-3">
+                <label for="zone-filter" class="form-label small text-uppercase text-muted">Zone</label>
+                <select id="zone-filter" class="form-select">
+                    <option value="">All zones</option>
+                    <option value="Zone A">Zone A</option>
+                    <option value="Zone B">Zone B</option>
+                    <option value="Zone C">Zone C</option>
+                </select>
             </div>
-            {% if slot[5] %}
-            <button onclick="reserveSlot({{ slot[0] }})" class="btn btn-success btn-block">Reserve</button>
-            {% endif %}
-        </div>
-        {% endfor %}
+            <div class="col-sm-3">
+                <label for="type-filter" class="form-label small text-uppercase text-muted">Type</label>
+                <select id="type-filter" class="form-select">
+                    <option value="">All types</option>
+                    <option value="regular">Regular</option>
+                    <option value="handicap">Handicap</option>
+                    <option value="vip">VIP</option>
+                    <option value="electric">Electric</option>
+                </select>
+            </div>
+            <div class="col-sm-2">
+                <label for="price-filter" class="form-label small text-uppercase text-muted">Max price</label>
+                <input type="number" id="price-filter" class="form-control" placeholder="USD" step="0.5">
+            </div>
+            <div class="col-sm-1 d-grid gap-2">
+                <button type="button" class="btn btn-primary" onclick="applyFilters()"><i class="bi bi-funnel"></i></button>
+                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </form>
     </div>
 </div>
 
-<div id="reserve-modal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h3>Make Reservation</h3>
-        <form id="reservation-form">
-            <input type="hidden" id="slot-id">
-            <div class="form-group">
-                <label>Duration (hours):</label>
-                <input type="number" id="duration" value="1" min="0.5" step="0.5" required>
+<div id="slots-grid" class="row g-3">
+    {% for slot in slots %}
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0 {{ 'border-success' if slot[5] else 'border-danger' }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h2 class="h5 mb-0">{{ slot[1] }}</h2>
+                        <p class="text-muted small mb-0">Floor {{ slot[2] }} · {{ slot[3] or 'No zone' }}</p>
+                    </div>
+                    <span class="badge {{ 'bg-success-subtle text-success border border-success-subtle' if slot[5] else 'bg-danger-subtle text-danger border border-danger-subtle' }}">{{ 'Available' if slot[5] else 'Occupied' }}</span>
+                </div>
+                <ul class="list-unstyled small text-muted mb-4">
+                    <li><i class="bi bi-lightning-charge me-2"></i>{{ slot[4]|capitalize }} slot</li>
+                    <li><i class="bi bi-cash-coin me-2"></i>${{ '%.2f'|format(slot[6]) }}/hr</li>
+                </ul>
+                {% if slot[5] %}
+                <button onclick="reserveSlot({{ slot[0] }})" class="btn btn-primary w-100">Reserve this slot</button>
+                {% endif %}
             </div>
-            <button type="submit" class="btn btn-primary">Confirm Reservation</button>
-        </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="reserveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Make reservation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reservation-form">
+                    <input type="hidden" id="slot-id">
+                    <div class="mb-3">
+                        <label class="form-label">Duration (hours)</label>
+                        <input type="number" id="duration" value="1" min="1" max="4" step="0.5" class="form-control" required>
+                        <div class="form-text">Reservations must be between 1 and 4 hours.</div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Confirm reservation</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -75,36 +108,52 @@
 {% block scripts %}
 <script>
 let selectedSlotId = null;
+let reserveModal = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const modalElement = document.getElementById('reserveModal');
+    reserveModal = new bootstrap.Modal(modalElement);
+});
 
 function updateSlots() {
     const floor = document.getElementById('floor-filter').value;
     const zone = document.getElementById('zone-filter').value;
     const type = document.getElementById('type-filter').value;
     const maxPrice = document.getElementById('price-filter').value;
-    
-    let url = '/api/slots?';
-    if (floor) url += `floor=${floor}&`;
-    if (zone) url += `zone=${zone}&`;
-    if (type) url += `type=${type}&`;
-    if (maxPrice) url += `max_price=${maxPrice}&`;
-    
-    fetch(url)
+
+    const params = new URLSearchParams();
+    if (floor) params.append('floor', floor);
+    if (zone) params.append('zone', zone);
+    if (type) params.append('type', type);
+    if (maxPrice) params.append('max_price', maxPrice);
+
+    const query = params.toString();
+    const endpoint = query ? `/api/slots?${query}` : '/api/slots';
+
+    fetch(endpoint)
         .then(response => response.json())
-        .then(slots => {
+        .then(payload => {
+            if (!payload.success) return;
+            const slots = payload.data.slots;
             const grid = document.getElementById('slots-grid');
             grid.innerHTML = slots.map(slot => `
-                <div class="slot-card ${slot.available ? 'available' : 'occupied'}">
-                    <div class="slot-header">
-                        <h3>${slot.number}</h3>
-                        <span class="slot-status">${slot.available ? 'Available' : 'Occupied'}</span>
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm border-0 ${slot.available ? 'border-success' : 'border-danger'}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h2 class="h5 mb-0">${slot.number}</h2>
+                                    <p class="text-muted small mb-0">Floor ${slot.floor} · ${slot.zone || 'No zone'}</p>
+                                </div>
+                                <span class="badge ${slot.available ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'}">${slot.available ? 'Available' : 'Occupied'}</span>
+                            </div>
+                            <ul class="list-unstyled small text-muted mb-4">
+                                <li><i class="bi bi-lightning-charge me-2"></i>${slot.type.charAt(0).toUpperCase() + slot.type.slice(1)} slot</li>
+                                <li><i class="bi bi-cash-coin me-2"></i>$${slot.price.toFixed(2)}/hr</li>
+                            </ul>
+                            ${slot.available ? `<button onclick="reserveSlot(${slot.id})" class="btn btn-primary w-100">Reserve this slot</button>` : ''}
+                        </div>
                     </div>
-                    <div class="slot-details">
-                        <p>Floor: ${slot.floor}</p>
-                        <p>Zone: ${slot.zone || 'N/A'}</p>
-                        <p>Type: ${slot.type}</p>
-                        <p class="slot-price">$${slot.price.toFixed(2)}/hr</p>
-                    </div>
-                    ${slot.available ? `<button onclick="reserveSlot(${slot.id})" class="btn btn-success btn-block">Reserve</button>` : ''}
                 </div>
             `).join('');
         });
@@ -125,17 +174,15 @@ function clearFilters() {
 function reserveSlot(slotId) {
     selectedSlotId = slotId;
     document.getElementById('slot-id').value = slotId;
-    document.getElementById('reserve-modal').style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('reserve-modal').style.display = 'none';
+    if (reserveModal) {
+        reserveModal.show();
+    }
 }
 
 document.getElementById('reservation-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const duration = document.getElementById('duration').value;
-    
+
     fetch('/api/reserve', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -148,15 +195,15 @@ document.getElementById('reservation-form').addEventListener('submit', function(
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Reservation created successfully!');
-            closeModal();
+            alert(data.message || 'Reservation created successfully!');
+            reserveModal.hide();
             updateSlots();
         } else {
-            alert('Error: ' + data.error);
+            alert('Error: ' + (data.message || 'Failed to create reservation'));
         }
     });
 });
 
-setInterval(updateSlots, 5000);
+setInterval(updateSlots, 10000);
 </script>
 {% endblock %}
