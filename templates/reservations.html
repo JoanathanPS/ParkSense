@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Reservations - Smart Parking{% endblock %}
+
+{% block content %}
+<div class="reservations-page">
+    <h2>Manage Reservations</h2>
+    
+    <div class="info-box">
+        <p>Note: This demo uses User ID 1. In production, this would be linked to your authenticated user account.</p>
+    </div>
+    
+    <div class="reservation-actions">
+        <button onclick="window.location.href='/slots'" class="btn btn-primary">New Reservation</button>
+    </div>
+    
+    <div class="reservations-info">
+        <h3>Active Reservations</h3>
+        <p>Active reservations will be shown here once created through the Parking Slots page.</p>
+        <p>The system tracks all reservations with payment details, duration, and status.</p>
+    </div>
+</div>
+{% endblock %}

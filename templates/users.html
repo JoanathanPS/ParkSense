@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Users - Smart Parking{% endblock %}
+
+{% block content %}
+<div class="users-page">
+    <h2>User Management</h2>
+    
+    <div class="user-actions">
+        <h3>Add Wallet Balance</h3>
+        <form id="balance-form" class="balance-form">
+            <div class="form-group">
+                <label>User ID:</label>
+                <input type="number" id="user-id" value="1" required>
+            </div>
+            <div class="form-group">
+                <label>Amount ($):</label>
+                <input type="number" id="amount" step="0.01" min="0.01" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Balance</button>
+        </form>
+    </div>
+    
+    <div class="users-info">
+        <h3>Demo Users</h3>
+        <ul class="user-list">
+            <li><strong>User 1:</strong> john_doe (john@example.com) - Vehicle: ABC-1234</li>
+            <li><strong>User 2:</strong> jane_smith (jane@example.com) - Vehicle: XYZ-5678</li>
+            <li><strong>User 3:</strong> bob_wilson (bob@example.com) - Vehicle: DEF-9999</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('balance-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('user-id').value;
+    const amount = document.getElementById('amount').value;
+    
+    fetch('/api/add-balance', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_id: parseInt(userId),
+            amount: parseFloat(amount)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully added $${amount} to user ${userId} wallet!`);
+            document.getElementById('amount').value = '';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+</script>
+{% endblock %}

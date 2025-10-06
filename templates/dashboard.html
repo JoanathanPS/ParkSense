@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Smart Parking{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>Parking Overview</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Slots</h3>
+            <p class="stat-number" id="total-slots">{{ summary.total_slots }}</p>
+        </div>
+        <div class="stat-card success">
+            <h3>Available</h3>
+            <p class="stat-number" id="available-slots">{{ summary.available_slots }}</p>
+        </div>
+        <div class="stat-card warning">
+            <h3>Occupied</h3>
+            <p class="stat-number" id="occupied-slots">{{ summary.occupied_slots }}</p>
+        </div>
+        <div class="stat-card info">
+            <h3>Occupancy Rate</h3>
+            <p class="stat-number" id="occupancy-rate">{{ summary.occupancy_rate }}%</p>
+        </div>
+    </div>
+    
+    <div class="floor-overview">
+        <h3>Floor Availability</h3>
+        <div id="floor-data">
+            {% for floor in summary.by_floor %}
+            <div class="floor-card">
+                <h4>Floor {{ floor[0] }}</h4>
+                <div class="floor-stats">
+                    <p>Available: <span class="highlight">{{ floor[2]|int }}/{{ floor[1] }}</span></p>
+                    <p>Avg Price: <span class="highlight">${{ "%.2f"|format(floor[3]) }}/hr</span></p>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (floor[2] / floor[1] * 100)|int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="zone-overview">
+        <h3>Zone Availability</h3>
+        <div id="zone-data" class="zone-grid">
+            {% for zone in summary.by_zone %}
+            <div class="zone-card">
+                <h4>{{ zone[0] }}</h4>
+                <p class="zone-available">{{ zone[2]|int }}/{{ zone[1] }} available</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateDashboard() {
+    fetch('/api/availability')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('total-slots').textContent = data.total_slots;
+            document.getElementById('available-slots').textContent = data.available_slots;
+            document.getElementById('occupied-slots').textContent = data.occupied_slots;
+            document.getElementById('occupancy-rate').textContent = data.occupancy_rate + '%';
+            
+            let floorHTML = '';
+            data.by_floor.forEach(floor => {
+                const available = Math.floor(floor[2] || 0);
+                const total = floor[1];
+                const percentage = (available / total * 100).toFixed(0);
+                floorHTML += `
+                    <div class="floor-card">
+                        <h4>Floor ${floor[0]}</h4>
+                        <div class="floor-stats">
+                            <p>Available: <span class="highlight">${available}/${total}</span></p>
+                            <p>Avg Price: <span class="highlight">$${floor[3].toFixed(2)}/hr</span></p>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('floor-data').innerHTML = floorHTML;
+            
+            let zoneHTML = '';
+            data.by_zone.forEach(zone => {
+                const available = Math.floor(zone[2] || 0);
+                zoneHTML += `
+                    <div class="zone-card">
+                        <h4>${zone[0]}</h4>
+                        <p class="zone-available">${available}/${zone[1]} available</p>
+                    </div>
+                `;
+            });
+            document.getElementById('zone-data').innerHTML = zoneHTML;
+        })
+        .catch(error => console.error('Error updating dashboard:', error));
+}
+
+setInterval(updateDashboard, 3000);
+</script>
+{% endblock %}

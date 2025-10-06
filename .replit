@@ -18,12 +18,17 @@ args = "Smart Parking System"
 name = "Smart Parking System"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python parking_system.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "python app.py"
+waitForPort = 5000
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

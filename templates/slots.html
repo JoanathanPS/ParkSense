@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Parking Slots - Smart Parking{% endblock %}
+
+{% block content %}
+<div class="slots-page">
+    <h2>Available Parking Slots</h2>
+    
+    <div class="filters">
+        <select id="floor-filter" class="filter-select">
+            <option value="">All Floors</option>
+            <option value="1">Floor 1</option>
+            <option value="2">Floor 2</option>
+            <option value="3">Floor 3</option>
+        </select>
+        
+        <select id="zone-filter" class="filter-select">
+            <option value="">All Zones</option>
+            <option value="Zone A">Zone A</option>
+            <option value="Zone B">Zone B</option>
+            <option value="Zone C">Zone C</option>
+        </select>
+        
+        <select id="type-filter" class="filter-select">
+            <option value="">All Types</option>
+            <option value="regular">Regular</option>
+            <option value="handicap">Handicap</option>
+            <option value="vip">VIP</option>
+            <option value="electric">Electric</option>
+        </select>
+        
+        <input type="number" id="price-filter" class="filter-input" placeholder="Max Price" step="0.5">
+        
+        <button onclick="applyFilters()" class="btn btn-primary">Filter</button>
+        <button onclick="clearFilters()" class="btn btn-secondary">Clear</button>
+    </div>
+    
+    <div id="slots-grid" class="slots-grid">
+        {% for slot in slots %}
+        <div class="slot-card {% if slot[5] %}available{% else %}occupied{% endif %}">
+            <div class="slot-header">
+                <h3>{{ slot[1] }}</h3>
+                <span class="slot-status">{{ 'Available' if slot[5] else 'Occupied' }}</span>
+            </div>
+            <div class="slot-details">
+                <p>Floor: {{ slot[2] }}</p>
+                <p>Zone: {{ slot[3] or 'N/A' }}</p>
+                <p>Type: {{ slot[4] }}</p>
+                <p class="slot-price">${{ "%.2f"|format(slot[6]) }}/hr</p>
+            </div>
+            {% if slot[5] %}
+            <button onclick="reserveSlot({{ slot[0] }})" class="btn btn-success btn-block">Reserve</button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="reserve-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3>Make Reservation</h3>
+        <form id="reservation-form">
+            <input type="hidden" id="slot-id">
+            <div class="form-group">
+                <label>Duration (hours):</label>
+                <input type="number" id="duration" value="1" min="0.5" step="0.5" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Confirm Reservation</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedSlotId = null;
+
+function updateSlots() {
+    const floor = document.getElementById('floor-filter').value;
+    const zone = document.getElementById('zone-filter').value;
+    const type = document.getElementById('type-filter').value;
+    const maxPrice = document.getElementById('price-filter').value;
+    
+    let url = '/api/slots?';
+    if (floor) url += `floor=${floor}&`;
+    if (zone) url += `zone=${zone}&`;
+    if (type) url += `type=${type}&`;
+    if (maxPrice) url += `max_price=${maxPrice}&`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(slots => {
+            const grid = document.getElementById('slots-grid');
+            grid.innerHTML = slots.map(slot => `
+                <div class="slot-card ${slot.available ? 'available' : 'occupied'}">
+                    <div class="slot-header">
+                        <h3>${slot.number}</h3>
+                        <span class="slot-status">${slot.available ? 'Available' : 'Occupied'}</span>
+                    </div>
+                    <div class="slot-details">
+                        <p>Floor: ${slot.floor}</p>
+                        <p>Zone: ${slot.zone || 'N/A'}</p>
+                        <p>Type: ${slot.type}</p>
+                        <p class="slot-price">$${slot.price.toFixed(2)}/hr</p>
+                    </div>
+                    ${slot.available ? `<button onclick="reserveSlot(${slot.id})" class="btn btn-success btn-block">Reserve</button>` : ''}
+                </div>
+            `).join('');
+        });
+}
+
+function applyFilters() {
+    updateSlots();
+}
+
+function clearFilters() {
+    document.getElementById('floor-filter').value = '';
+    document.getElementById('zone-filter').value = '';
+    document.getElementById('type-filter').value = '';
+    document.getElementById('price-filter').value = '';
+    updateSlots();
+}
+
+function reserveSlot(slotId) {
+    selectedSlotId = slotId;
+    document.getElementById('slot-id').value = slotId;
+    document.getElementById('reserve-modal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('reserve-modal').style.display = 'none';
+}
+
+document.getElementById('reservation-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const duration = document.getElementById('duration').value;
+    
+    fetch('/api/reserve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_id: 1,
+            slot_id: selectedSlotId,
+            duration: parseFloat(duration)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Reservation created successfully!');
+            closeModal();
+            updateSlots();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+setInterval(updateSlots, 5000);
+</script>
+{% endblock %}
