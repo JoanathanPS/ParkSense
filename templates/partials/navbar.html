@@ -1,0 +1,20 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href="{{ url_for('index') }}">
+            <i class="bi bi-parking"></i> ParkSense
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('slots') }}">Slots</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('reservations') }}">Reservations</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('users') }}">Users</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>

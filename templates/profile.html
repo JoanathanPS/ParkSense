@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile · {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:56px;height:56px;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div>
+                        <h1 class="h5 mb-0">{{ user.username }}</h1>
+                        <p class="text-muted small mb-0">Wallet &amp; reservations overview</p>
+                    </div>
+                </div>
+                <dl class="row small mb-0">
+                    <dt class="col-4 text-muted">Email</dt>
+                    <dd class="col-8">{{ user.email }}</dd>
+                    <dt class="col-4 text-muted">Phone</dt>
+                    <dd class="col-8">{{ user.phone or '—' }}</dd>
+                    <dt class="col-4 text-muted">Vehicle</dt>
+                    <dd class="col-8">{{ user.vehicle_number or '—' }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div>
+                        <h2 class="h5 mb-1">Wallet balance</h2>
+                        <p class="text-muted small mb-0">Switch between USD and INR to view your preferred currency.</p>
+                    </div>
+                    <form method="post" class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0 small text-muted" for="currency-select">Currency</label>
+                        <select class="form-select form-select-sm" id="currency-select" name="preferred_currency" onchange="this.form.submit()">
+                            <option value="USD" {% if preferred_currency == 'USD' %}selected{% endif %}>USD</option>
+                            <option value="INR" {% if preferred_currency == 'INR' %}selected{% endif %}>INR</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <p class="text-muted small mb-1">Preferred balance</p>
+                            <h3 class="h4 mb-0">{% if preferred_currency == 'INR' %}₹{{ '%.2f'|format(balances.balance_inr) }}{% else %}${{ '%.2f'|format(balances.balance_usd) }}{% endif %}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <p class="text-muted small mb-1">USD</p>
+                            <h3 class="h4 mb-0">${{ '%.2f'|format(balances.balance_usd) }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <p class="text-muted small mb-1">INR</p>
+                            <h3 class="h4 mb-0">₹{{ '%.2f'|format(balances.balance_inr) }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-0 pb-0">
+                <h2 class="h5 mb-0">Reservations</h2>
+                <p class="text-muted small mb-0">History of active and past parking sessions.</p>
+            </div>
+            <div class="card-body">
+                {% if reservations %}
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Slot</th>
+                                <th scope="col">Start</th>
+                                <th scope="col">Duration (hrs)</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reservation in reservations %}
+                            <tr>
+                                <td class="fw-semibold">{{ reservation.slot_number }}</td>
+                                <td>{{ reservation.start_time }}</td>
+                                <td>{{ reservation.duration_hours }}</td>
+                                <td>
+                                    <span class="badge {% if reservation.status == 'active' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}">
+                                        {{ reservation.status|capitalize }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No reservations found for this user.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
