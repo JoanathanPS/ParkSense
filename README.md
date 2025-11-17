@@ -116,7 +116,7 @@ http://localhost:5000
 
 ## 🧑‍💻 Author
 
-**Jonathan P. S.**  
+**Joanathan P. S.**  
 Project maintained with 💡 curiosity and clean Python code.  
 📫 Reach out via GitHub: [JoanathanPS](https://github.com/JoanathanPS)
 
